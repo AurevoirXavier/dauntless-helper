@@ -1,10 +1,8 @@
-extern crate winapi;
+extern crate inputbot;
 extern crate ws;
+extern crate winapi;
 
 mod util;
-
-use std::{io, thread, time};
-use std::io::Write;
 
 static HTML: &'static [u8] = br#"
 <html>
@@ -52,8 +50,20 @@ impl ws::Handler for Server {
 }
 
 fn main() {
+    // --- std ---
+    use std::{
+        io::{self, Write},
+        thread,
+        time,
+    };
+    // --- custom ---
+    use util::{
+        game::*,
+        windows::find_game,
+    };
+
     let mut address = String::new();
-    print!("Ip address: ");
+    print!("Author: AurevoirXavier\nIp address: ");
     io::stdout().flush().unwrap();
     io::stdin().read_line(&mut address).unwrap();
 
@@ -63,20 +73,36 @@ fn main() {
     let handle = socket.broadcaster();
     thread::spawn(move || socket.listen(address.trim_end()));
 
-    match util::find_game() {
+    match find_game() {
         Ok((proc, exe_address)) => {
-            println!("Author: AurevoirXavier\nInit succeed. Enjoy the game.");
+            println!("Init succeed. Enjoy the game.");
 
+            let mut duration = 100;
+            let mut msg;
+            let (mut coordinates, mut coordinates_ptrs) = (vec![], vec![]);
+            let mut mouse_angles_ptr = 0;
             loop {
-                if let Ok(ptr) = util::get_ptr(proc, vec![exe_address, 0x404BA90, 0x148, 0x440, 0, 0x758, 0x80, 0x190, 0, 0x30]) {
-                    let buffer: *mut f32 = &mut 0.;
-                    if let Ok(_) = util::read_process_memory(proc, ptr as _, buffer as _, 4) {
-                        let hp = unsafe { *buffer };
-                        let _ = handle.send(hp.to_string());
-                    }
+                if let Ok(hp) = get_boss_hp(proc, exe_address) {
+                    msg = hp.to_string();
+
+                    if inputbot::KeybdKey::LControlKey.is_pressed() {
+                        if let Ok(c) = get_player_boss_coordinates(proc, exe_address, &mut coordinates_ptrs) { coordinates = c; } else { continue; }
+                        if let Err(_) = aim_bot(proc, exe_address, &coordinates, &mut mouse_angles_ptr) { continue; }
+
+                        duration = 10;
+                    } else { duration = 100; }
+                } else {
+                    msg = String::from("Not yet started");
+
+                    coordinates.clear();
+                    coordinates_ptrs.clear();
+
+                    mouse_angles_ptr = 0;
                 }
 
-                thread::sleep(time::Duration::from_millis(500));
+                let _ = handle.send(msg.clone());
+
+                thread::sleep(time::Duration::from_millis(duration));
             }
         }
         Err(e) => println!("{:?}", e)
