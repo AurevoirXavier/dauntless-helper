@@ -47,8 +47,8 @@ HRESULT __fastcall hookPresent(IDXGISwapChain *pSwapChain, UINT syncInterval, UI
                 "Home: [teleport to Boss] [传送 Boss]\n"
                 "Delete: [attack from far] [远程攻击]\n"
                 "End: [cancel the injection] [取消注入]\n\n"
-                "Other features: use the arrow keys\n"
-                "其它功能: 使用方向键\n\n"
+                "Other features: activated by arrow keys\n"
+                "其它功能: 方向键激活\n\n"
                 "I post ONLY on my github. ALL FREE & USE AT YOUR OWN RISK!\n"
                 "切勿相信本人 Github 以外的任何来源. 免费 & 风险自担!\n"
                 "Github: https://github.com/AurevoirXavier",

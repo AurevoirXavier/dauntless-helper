@@ -11,7 +11,7 @@
   3. speed up movement - 增加移动速度
   4. instant movement - 即时移动
   5. infinity stamina - 无限耐力
-  6. activated by arrow key - 方向键激活
+  6. activated by arrow keys - 方向键激活
 
 **I post ONLY on my github. ALL FREE & USE AT YOUR OWN RISK!**
 **切勿相信本人 Github 以外的任何来源. 免费 & 风险自担!**
