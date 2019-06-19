@@ -1,0 +1,26 @@
+[package]
+name = "dauntless-helper"
+version = "0.1.0"
+authors = ["Xavier Lau <c.estlavie@icloud.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["dylib"]
+path = "src/lib.rs"
+
+[dependencies]
+detour = "*"
+winapi = { version = "*", features = ["errhandlingapi", "consoleapi", "d3d11", "libloaderapi", "processthreadsapi", "memoryapi", "winuser"] }
+
+[profile.test]
+opt-level = 3
+debug = false
+rpath = false
+lto = false
+debug-assertions = false
+codegen-units = 16
+panic = 'unwind'
+incremental = false
+overflow-checks = false

@@ -1,5 +1,9 @@
 .idea
-/target
-**/*.rs.bk
 
+cmake-build-release
+
+target
+
+*.rs.bk
 Cargo.lock
+·

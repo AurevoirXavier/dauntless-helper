@@ -1,15 +1,17 @@
-#### 功能
+#### Features
 
-1. boss 血量显示
-2. boss 位置追踪
+- **Insert**: show menu - 显示菜单
+- **Hom**e: teleport to Boss - 传送 Boss
+- **Delete**: attack from far - 远程攻击
+- **End**: cancel the injection - 取消注入
 
-#### 获取方法
+- **Other features**: 
+  1. show Boss HP - 显示 Boss 血量
+  2. speed up attack - 增加攻击速度
+  3. speed up movement - 增加移动速度
+  4. instant movement - 即时移动
+  5. infinity stamina - 无限耐力
+  6. activated by arrow key - 方向键激活
 
-1. 自行下载源码编译，cargo build —release，rust 要求版本 nightly
-2. 进入 release 下载编译好成品，版本号最高的即为最新版
-
-#### 使用方法
-
-1. 打开后输入本地 IP + 端口号，例如 192.168.1.38:3012
-2. 局域网内所有设备（包括本机）都可通过浏览器访问 192.168.1.38:3012 读取 boss 血量。
-
+**I post ONLY on my github. ALL FREE & USE AT YOUR OWN RISK!**
+**切勿相信本人 Github 以外的任何来源. 免费 & 风险自担!**
