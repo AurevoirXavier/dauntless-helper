@@ -107,6 +107,8 @@ DWORD Player::teleportToBoss(LPVOID) {
 }
 
 Boss::Boss() {
+    this->positionLocked = false;
+
     this->pHp = nullptr;
     this->hp = 0;
 
@@ -130,7 +132,7 @@ void Boss::updateCoordinate() {
 
 DWORD Boss::teleportToPlayer(LPVOID) {
     float x = *menu.player.pX;
-    float y = *menu.player.pY + 100;
+    float y = *menu.player.pY + 300;
     float z = *menu.player.pZ;
 
     while (menu.boss.positionLocked) {
