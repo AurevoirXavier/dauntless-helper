@@ -1,6 +1,6 @@
 #include "menu.h"
 
-HWND dauntlessWindow = FindWindow(nullptr, "Dauntless  ");
+HWND dauntlessWindow = GetForegroundWindow();
 Menu menu;
 
 bool init = true;
@@ -131,8 +131,8 @@ void Boss::updateCoordinate() {
 }
 
 DWORD Boss::teleportToPlayer(LPVOID) {
-    float x = *menu.player.pX;
-    float y = *menu.player.pY + 300;
+    float x = *menu.player.pX + 500;
+    float y = *menu.player.pY;
     float z = *menu.player.pZ;
 
     while (menu.boss.positionLocked) {
@@ -202,11 +202,16 @@ Menu::Menu() {
 Menu::~Menu() {
     for (auto &option : this->options) option.status = false;
 
+    this->pFontWrapper->Release();
+    this->pTargetView->Release();
+    this->pContext->Release();
+
     this->player.~Player();
     this->boss.~Boss();
 }
 
 void Menu::draw() {
+    if (GetForegroundWindow() != dauntlessWindow) return;
     if (GetAsyncKeyState(VK_INSERT) & 1) this->visible = !this->visible;
     if (!this->visible) return;
 
