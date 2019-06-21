@@ -335,7 +335,7 @@ void Helper::draw() {
 
     if (ImGui::CollapsingHeader("Player Attributes")) {
         ImGui::Checkbox("Modify attack speed", &helper.player.attributes[0].status);
-        ImGui::SliderFloat("attack speed", &helper.player.attributes[0].value, 1, 1000);
+        ImGui::SliderFloat("Attack speed", &helper.player.attributes[0].value, 1, 1000);
         ImGui::Checkbox("Modify movement speed", &helper.player.attributes[1].status);
         ImGui::SliderFloat("Movement speed", &helper.player.attributes[1].value, 1, 1000);
         ImGui::Checkbox("Enable instant movement", &(bool &) helper.player.attributes[2].status);
