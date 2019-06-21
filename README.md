@@ -1,11 +1,11 @@
-#### Features
+## Features
 
 #### cpp-ver-imgui-ver
 
-- **F1**: Foncus on menu - 激活菜单
-- **Home**: Show/Hide menu - 显示/隐藏菜单
+- **F1**: focus on menu - 激活菜单
+- **Home**: show/hide menu - 显示/隐藏菜单
 
-- **Other feature**: Use Tab to modify the slide bar value - 使用 Tab 键可修改滑动条数值 
+- **Other feature**: use **Tab** to modify the slide bar value - 使用 Tab 键可修改滑动条数值 
 
 
 ![cpp-ver-imgui-ver](cpp-ver-imgui-ver.png)
@@ -19,7 +19,7 @@
 
 - **Other features**: 
   1. show Boss HP - 显示 Boss 血量
-  2. Hunting timer - 狩猎计时
+  2. hunting timer - 狩猎计时
   3. speed up attack - 增加攻击速度
   4. speed up movement - 增加移动速度
   5. instant movement - 即时移动
