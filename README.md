@@ -5,7 +5,7 @@
 - **F1**: Foncus on menu - 激活菜单
 - **Home**: Show/Hide menu - 显示/隐藏菜单
 
-- **Other feature**: Using Tab can modify the slide bar value - 使用 Tab 键可修改滑动条数值 
+- **Other feature**: Use Tab to modify the slide bar value - 使用 Tab 键可修改滑动条数值 
 
 
 ![cpp-ver-imgui-ver](cpp-ver-imgui-ver.png)
