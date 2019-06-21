@@ -8,9 +8,11 @@
 #pragma comment(lib, "detours.lib")
 #pragma comment(lib, "helper")
 
+#pragma warning(disable:4996)
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 
-typedef HRESULT(__fastcall *PresentHook)(IDXGISwapChain *, UINT, UINT);
+typedef HRESULT(*PresentHook)(IDXGISwapChain *, UINT, UINT);
 
 bool g_initialised = false;
 bool g_activeMenu = false;
@@ -29,13 +31,13 @@ static IDXGISwapChain *pSwapChain = nullptr;
 static HWND window = nullptr;
 static WNDPROC originalWndProc = nullptr;
 
-//void launchConsole() {
-//    AllocConsole();
-//    SetConsoleTitle("[+] Hooking DirectX 11 by Xavier");
-//    freopen("CONOUT$", "w", stdout);
-//    freopen("CONOUT$", "w", stderr);
-//    freopen("CONIN$", "r", stdin);
-//}
+void launchConsole() {
+    AllocConsole();
+    SetConsoleTitle("[+] Hooking DirectX 11 by Xavier");
+    freopen("CONOUT$", "w", stdout);
+    freopen("CONOUT$", "w", stderr);
+    freopen("CONIN$", "r", stdin);
+}
 
 LRESULT CALLBACK hWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     ImGuiIO &io = ImGui::GetIO();
@@ -110,13 +112,6 @@ HRESULT __fastcall hookPresent(IDXGISwapChain *pIDXGISwapChain, UINT SyncInterva
     return presentHook(pIDXGISwapChain, SyncInterval, Flags);
 }
 
-void detourPresent() {
-    DetourTransactionBegin();
-    DetourUpdateThread(GetCurrentThread());
-    DetourAttach(&(LPVOID &) presentHook, (LPVOID) hookPresent);
-    DetourTransactionCommit();
-}
-
 void getVMT() {
     IDXGISwapChain *swapChain;
     DXGI_SWAP_CHAIN_DESC swapChainDesc;
@@ -153,9 +148,17 @@ void getVMT() {
     presentHook = (PresentHook) pVMT[8];
 }
 
-DWORD WINAPI start(LPVOID pDll) {
-//    launchConsole();
+void detourPresent() {
     getVMT();
+
+    DetourTransactionBegin();
+    DetourUpdateThread(GetCurrentThread());
+    DetourAttach(&(LPVOID &) presentHook, (LPVOID) hookPresent);
+    DetourTransactionCommit();
+}
+
+DWORD WINAPI start(LPVOID) {
+//    launchConsole();
     detourPresent();
 
     return NULL;
@@ -165,7 +168,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
     switch (reason) {
         case DLL_PROCESS_ATTACH: {
             DisableThreadLibraryCalls(hModule);
-            CreateThread(nullptr, NULL, start, hModule, NULL, nullptr);
+            CreateThread(nullptr, NULL, start, nullptr, NULL, nullptr);
         }
         case DLL_THREAD_ATTACH:
         case DLL_THREAD_DETACH:

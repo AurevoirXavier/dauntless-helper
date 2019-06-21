@@ -21,6 +21,8 @@ public:
 
 class Coordinate {
 public:
+    bool isLocked;
+
     DWORD64 baseAddress;
     std::vector<DWORD64> offsets;
     PFLOAT pX;
@@ -43,19 +45,26 @@ public:
     void lockTo(float, float, float);
 
     void update();
+
+    void initInHunt();
+
+    void clearData();
 };
 
 class Boss {
 public:
-    bool positionLocked;
-
-    std::vector<Attribute> attributes;
+//    std::vector<Attribute> attributes;
+    Attribute hp;
 
     Coordinate coordinate;
 
     Boss();
 
-    void updateAttribute();
+//    void updateAttribute();
+
+    static DWORD WINAPI monitoring(LPVOID);
+
+    void initInHunt();
 };
 
 class Player {
@@ -67,12 +76,13 @@ public:
     Player();
 
     void updateAttribute();
+
+    void initInHunt();
 };
 
 class Feature {
 public:
     bool status;
-    bool previousStatus;
 
     void (*fn)();
 
@@ -81,6 +91,8 @@ public:
 
 class Helper {
 public:
+    LPARAM cursor;
+
     Boss boss;
     Player player;
 
@@ -88,7 +100,7 @@ public:
 
     Helper();
 
-    static DWORD run(LPVOID);
+    static DWORD WINAPI run(LPVOID);
 
     static void draw();
 };
