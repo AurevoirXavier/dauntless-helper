@@ -42,7 +42,7 @@ public:
 
     void lock();
 
-    void lockTo(float, float, float);
+    void teleportTo(float, float, float);
 
     void update();
 

@@ -13,7 +13,7 @@ extern bool g_showMenu;
 
 bool lButtonDown, rButtonDown, inHunt = false;
 bool startHunt = false;
-int huntingTimer = 0;
+//int huntingTimer = 0;
 
 PDWORD64 readFromMemSecurity(DWORD64 baseAddress, const std::vector<DWORD64> &offsets) {
     auto ptr = (PDWORD64) baseAddress;
@@ -37,15 +37,58 @@ void autoClick() {
         PostMessage(dauntlessWindow, WM_RBUTTONUP, NULL, helper.cursor);
     }
 
+    // during teleport
+    if (helper.huntingFeatures[2].status) return;
     if (helper.huntingFeatures[1].status && (lButtonDown || rButtonDown)) helper.player.coordinate.lock(); else helper.player.coordinate.isLocked = false;
 }
 
+void move(PFLOAT from, float to, PFLOAT pZ, float speed) {
+    float fromStamp = *from;
+    int d = int(to - fromStamp);
+    float offset = d < 0 ? speed : -speed;
+    float z = pZ ? *pZ : 0;
+    int range = int(speed * 2);
+
+    while (abs(d) > range) {
+        d = int(to - fromStamp);
+        fromStamp -= offset;
+        *from = fromStamp;
+        if (z != 0) *pZ = z;
+        Sleep(1);
+    }
+}
+
+DWORD WINAPI TeleportPlayerToBoss(LPVOID) {
+    float dZ = helper.player.coordinate.z - helper.boss.coordinate.z;
+    if (dZ < 0) move(helper.player.coordinate.pZ, helper.boss.coordinate.z + 100, nullptr, 15);
+    move(helper.player.coordinate.pY, helper.boss.coordinate.y, helper.player.coordinate.pZ, 15);
+    move(helper.player.coordinate.pX, helper.boss.coordinate.x, helper.player.coordinate.pZ, 15);
+    // prevent fall down too fast
+    if (dZ > 2000) move(helper.player.coordinate.pZ, helper.boss.coordinate.z + 100, nullptr, 10);
+
+    helper.huntingFeatures[2].status = false;
+
+    return NULL;
+}
+
+void teleportPlayerToBoss() {
+    // locked by auto click
+    if (helper.player.coordinate.isLocked) helper.huntingFeatures[2].status = false; else CreateThread(nullptr, NULL, TeleportPlayerToBoss, nullptr, NULL, nullptr);
+}
+
 DWORD WINAPI TeleportBossToPlayer(LPVOID) {
+    helper.boss.coordinate.isLocked = true;
+
     float x = helper.player.coordinate.x + 500;
     float y = helper.player.coordinate.y;
     float z = helper.player.coordinate.z;
 
-    while (helper.huntingFeatures[2].status) helper.boss.coordinate.lockTo(x, y, z);
+    //  need some delay to active some monsters like Rezakiri
+    for (int i = 0; i < 100; i += 1) {
+        helper.boss.coordinate.teleportTo(x, y, z);
+        Sleep(1);
+    }
+    while (helper.huntingFeatures[3].status) helper.boss.coordinate.teleportTo(x, y, z);
 
     helper.boss.coordinate.isLocked = false;
 
@@ -53,11 +96,8 @@ DWORD WINAPI TeleportBossToPlayer(LPVOID) {
 }
 
 void teleportBossToPlayer() {
-    if (helper.boss.coordinate.isLocked) return;
-
-    CreateThread(nullptr, NULL, TeleportBossToPlayer, nullptr, NULL, nullptr);
-
-    Sleep(100);
+    // locked by self thread
+    if (!helper.boss.coordinate.isLocked) CreateThread(nullptr, NULL, TeleportBossToPlayer, nullptr, NULL, nullptr);
 }
 
 Attribute::Attribute() {
@@ -122,9 +162,7 @@ void Coordinate::lock() {
     *this->pZ = this->lockZ;
 }
 
-void Coordinate::lockTo(float x, float y, float z) {
-    this->isLocked = true;
-
+void Coordinate::teleportTo(float x, float y, float z) {
     *this->pX = x;
     *this->pY = y;
     *this->pZ = z;
@@ -133,7 +171,6 @@ void Coordinate::lockTo(float x, float y, float z) {
 void Coordinate::update() {
     if (this->isLocked) return;
 
-//    if (inHunt) {
     this->x = *this->pX;
     this->y = *this->pY;
     this->z = *this->pZ;
@@ -143,18 +180,6 @@ void Coordinate::update() {
         this->lockY = this->y;
         this->lockZ = this->z;
     }
-//    } else {
-//        PDWORD64 pCoordinate = readFromMemSecurity(this->baseAddress, this->offsets);
-//        if (!pCoordinate) return;
-//
-//        this->pX = (PFLOAT) (*pCoordinate + 0x190);
-//        this->pY = (PFLOAT) (*pCoordinate + 0x194);
-//        this->pZ = (PFLOAT) (*pCoordinate + 0x198);
-//
-//        if (!IsBadCodePtr((FARPROC) this->pX)) this->x = *this->pX;
-//        if (!IsBadCodePtr((FARPROC) this->pY)) this->y = *this->pY;
-//        if (!IsBadCodePtr((FARPROC) this->pZ)) this->z = *this->pZ;
-//    }
 }
 
 void Coordinate::initInHunt() {
@@ -165,28 +190,9 @@ void Coordinate::initInHunt() {
     }
 
     this->pX = (PFLOAT) (*pCoordinate + 0x190);
-//    auto p = (PFLOAT) (*pCoordinate + 0x190);
-//    while (IsBadCodePtr((FARPROC) p)) {
-//        p = (PFLOAT) (*pCoordinate + 0x190);
-//        Sleep(100);
-//    }
-//    this->pX = p;
-
     this->pY = (PFLOAT) (*pCoordinate + 0x194);
-//    p = (PFLOAT) (*pCoordinate + 0x194);
-//    while (IsBadCodePtr((FARPROC) p)) {
-//        p = (PFLOAT) (*pCoordinate + 0x194);
-//        Sleep(100);
-//    }
-//    this->pY = p;
-
     this->pZ = (PFLOAT) (*pCoordinate + 0x198);
-//    p = (PFLOAT) (*pCoordinate + 0x198);
-//    while (IsBadCodePtr((FARPROC) p)) {
-//        p = (PFLOAT) (*pCoordinate + 0x198);
-//        Sleep(100);
-//    }
-//    this->pZ = p;
+
 }
 
 void Coordinate::clearData() {
@@ -222,8 +228,9 @@ DWORD WINAPI Boss::monitoring(LPVOID) {
             lButtonDown = false;
             rButtonDown = false;
             helper.huntingFeatures[2].status = false;
+            helper.huntingFeatures[3].status = false;
 
-            Sleep(1000);
+            Sleep(100);
 
             if (!startHunt) {
                 helper.boss.coordinate.clearData();
@@ -246,20 +253,21 @@ void Boss::initInHunt() {
 Player::Player() {
     // 0 attack speed
     // 1 movement speed
-    // 2 instant movement
-    // 3 jump height
-    // 4 stamina
+    // 2 jump height
+    // 3 instant movement 1
+    // 4 instant movement 2
+    // 5 stamina
     this->attributes.emplace_back(processAddress + 0x3E323B0, std::initializer_list<DWORD64>{0x10, 0x758, 0x190, 0x8, 0xD4}, 10.f);
     this->attributes.emplace_back(processAddress + 0x3E323B0, std::initializer_list<DWORD64>{0x10, 0x758, 0x190, 0x10, 0x30}, 4.f);
-    this->attributes.emplace_back(processAddress + 0x3E323B0, std::initializer_list<DWORD64>{0x10, 0x398, 0x214}, 100000.f);
     this->attributes.emplace_back(processAddress + 0x4076340, std::initializer_list<DWORD64>{0x30, 0x3B8, 0x398, 0x1AC}, 2000.f);
-    this->attributes.emplace_back(processAddress + 0x3E323B0, std::initializer_list<DWORD64>{0x10, 0x758, 0x190, 0, 0xB4}, 100.f);
+    this->attributes.emplace_back(processAddress + 0x3E323B0, std::initializer_list<DWORD64>{0x10, 0x398, 0x1F8}, 10000.f);
+    this->attributes.emplace_back(processAddress + 0x3E323B0, std::initializer_list<DWORD64>{0x10, 0x398, 0x214}, 10000.f);
+    this->attributes.emplace_back(processAddress + 0x3E323B0, std::initializer_list<DWORD64>{0x10, 0x758, 0x190, 0, 0xB4}, 106.f);
 
     this->coordinate = Coordinate(processAddress + 0x3E323B0, std::initializer_list<DWORD64>{0x10, 0x48, 0x8, 0xC8});
 }
 
 void Player::updateAttribute() {
-//    if (inHunt) {
     for (Attribute &attribute : this->attributes) {
         if (attribute.status) {
             attribute.previousStatus = true;
@@ -269,20 +277,6 @@ void Player::updateAttribute() {
             if (attribute.status) *attribute.pointer = attribute.defaultValue;
         }
     }
-//    } else {
-//        for (Attribute &attribute : this->attributes) {
-//            attribute.pointer = (PFLOAT) readFromMemSecurity(attribute.baseAddress, attribute.offsets);
-//            if (!attribute.pointer) continue;
-//
-//            if (attribute.status) {
-//                attribute.previousStatus = true;
-//                *attribute.pointer = attribute.value;
-//            } else if (attribute.previousStatus) {
-//                attribute.previousStatus = false;
-//                if (attribute.status) *attribute.pointer = attribute.defaultValue;
-//            }
-//        }
-//    }
 }
 
 void Player::initInHunt() {
@@ -316,9 +310,11 @@ Helper::Helper() {
 
     // 0 auto click
     // 1 lock player position on auto lock
-    // 2 summon boss
+    // 2 teleport to boss
+    // 3 summon boss
     this->huntingFeatures.emplace_back(autoClick);
     this->huntingFeatures.emplace_back(nullptr);
+    this->huntingFeatures.emplace_back(teleportPlayerToBoss);
     this->huntingFeatures.emplace_back(teleportBossToPlayer);
 }
 
@@ -348,7 +344,10 @@ DWORD WINAPI Helper::run(LPVOID) {
             lButtonDown = GetKeyState(VK_LBUTTON) < 0;
             rButtonDown = GetKeyState(VK_RBUTTON) < 0;
 
-            if (GetAsyncKeyState(VK_F2) & 1) helper.huntingFeatures[2].status = !helper.huntingFeatures[2].status;
+            // feature 2 only call once
+            if (GetAsyncKeyState(VK_F2) & 1) helper.huntingFeatures[2].status = true;
+            // feature 3 in a loop
+            if (GetAsyncKeyState(VK_F3) & 1) helper.huntingFeatures[3].status = !helper.huntingFeatures[3].status;
         }
 
         for (Feature &feature : helper.huntingFeatures) if (feature.status && feature.fn) feature.fn();
@@ -374,19 +373,20 @@ void Helper::draw() {
     if (ImGui::CollapsingHeader("Hunting features")) {
         ImGui::Checkbox("Auto click", &helper.huntingFeatures[0].status);
         ImGui::Checkbox("Lock player position on auto click", &helper.huntingFeatures[1].status);
-        ImGui::Checkbox("Summon Boss [F2]", &helper.huntingFeatures[2].status);
+        ImGui::Checkbox("Teleport to Boss [F2]", &helper.huntingFeatures[2].status);
+        ImGui::Checkbox("Summon Boss [F3]", &helper.huntingFeatures[3].status);
     }
 
     if (ImGui::CollapsingHeader("Player Attributes")) {
         ImGui::Checkbox("Modify attack speed", &helper.player.attributes[0].status);
         ImGui::SliderFloat("Attack speed", &helper.player.attributes[0].value, 1, 1000);
         ImGui::Checkbox("Modify movement speed", &helper.player.attributes[1].status);
-        ImGui::SliderFloat("Movement speed", &helper.player.attributes[1].value, 1, 1000);
-        ImGui::Checkbox("Enable instant movement", &(bool &) helper.player.attributes[2].status);
-        ImGui::SliderFloat("Instant movement", &helper.player.attributes[2].value, 500, 100000);
-        ImGui::Checkbox("Modify jump height", &(bool &) helper.player.attributes[3].status);
-        ImGui::SliderFloat("Jump height", &helper.player.attributes[3].value, 980, 100000);
-        ImGui::Checkbox("Infinity stamina", &(bool &) helper.player.attributes[4].status);
+        ImGui::SliderFloat("Movement speed", &helper.player.attributes[1].value, 1, 8);
+        ImGui::Checkbox("Modify jump height", &helper.player.attributes[2].status);
+        ImGui::SliderFloat("Jump height", &helper.player.attributes[2].value, 980, 5000);
+        ImGui::Checkbox("Instant movement", &helper.player.attributes[3].status);
+        helper.player.attributes[4].status = helper.player.attributes[3].status;
+        ImGui::Checkbox("Infinity stamina", &helper.player.attributes[5].status);
     }
 
     if (ImGui::CollapsingHeader("Status")) {
