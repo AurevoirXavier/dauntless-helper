@@ -14,5 +14,3 @@ add_library(imgui imgui/imgui.cpp imgui/imgui_draw.cpp imgui/imgui_widgets.cpp i
 target_link_libraries(hack helper)
 target_link_libraries(hack imgui)
 target_link_libraries(hack C:/Users/cestl/Desktop/dauntless-helper/cpp-ver/detours/detours.lib)
-
-#add_executable(dauntless-helper injector.cpp)

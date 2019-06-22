@@ -37,7 +37,7 @@ void autoClick() {
         PostMessage(dauntlessWindow, WM_RBUTTONUP, NULL, helper.cursor);
     }
 
-    if (lButtonDown || rButtonDown) helper.player.coordinate.lock(); else helper.player.coordinate.isLocked = false;
+    if (helper.huntingFeatures[1].status && (lButtonDown || rButtonDown)) helper.player.coordinate.lock(); else helper.player.coordinate.isLocked = false;
 }
 
 DWORD WINAPI TeleportBossToPlayer(LPVOID) {
@@ -133,44 +133,76 @@ void Coordinate::lockTo(float x, float y, float z) {
 void Coordinate::update() {
     if (this->isLocked) return;
 
-    if (inHunt) {
-        this->x = *this->pX;
-        this->y = *this->pY;
-        this->z = *this->pZ;
+//    if (inHunt) {
+    this->x = *this->pX;
+    this->y = *this->pY;
+    this->z = *this->pZ;
 
-        if (!lButtonDown && !rButtonDown) {
-            this->lockX = this->x;
-            this->lockY = this->y;
-            this->lockZ = this->z;
-        }
-    } else {
-        PDWORD64 pCoordinate = readFromMemSecurity(this->baseAddress, this->offsets);
-        if (!pCoordinate) return;
-
-        this->pX = (PFLOAT) (*pCoordinate + 0x190);
-        this->pY = (PFLOAT) (*pCoordinate + 0x194);
-        this->pZ = (PFLOAT) (*pCoordinate + 0x198);
-
-        if (!IsBadCodePtr((FARPROC) this->pX)) this->x = *this->pX;
-        if (!IsBadCodePtr((FARPROC) this->pY)) this->y = *this->pY;
-        if (!IsBadCodePtr((FARPROC) this->pZ)) this->z = *this->pZ;
+    if (!lButtonDown && !rButtonDown) {
+        this->lockX = this->x;
+        this->lockY = this->y;
+        this->lockZ = this->z;
     }
+//    } else {
+//        PDWORD64 pCoordinate = readFromMemSecurity(this->baseAddress, this->offsets);
+//        if (!pCoordinate) return;
+//
+//        this->pX = (PFLOAT) (*pCoordinate + 0x190);
+//        this->pY = (PFLOAT) (*pCoordinate + 0x194);
+//        this->pZ = (PFLOAT) (*pCoordinate + 0x198);
+//
+//        if (!IsBadCodePtr((FARPROC) this->pX)) this->x = *this->pX;
+//        if (!IsBadCodePtr((FARPROC) this->pY)) this->y = *this->pY;
+//        if (!IsBadCodePtr((FARPROC) this->pZ)) this->z = *this->pZ;
+//    }
 }
 
 void Coordinate::initInHunt() {
-    PDWORD64 pCoordinate = readFromMemSecurity(this->baseAddress, this->offsets);
+    PDWORD64 pCoordinate = nullptr;
+    while (!pCoordinate) {
+        pCoordinate = readFromMemSecurity(this->baseAddress, this->offsets);
+        Sleep(100);
+    }
 
     this->pX = (PFLOAT) (*pCoordinate + 0x190);
+//    auto p = (PFLOAT) (*pCoordinate + 0x190);
+//    while (IsBadCodePtr((FARPROC) p)) {
+//        p = (PFLOAT) (*pCoordinate + 0x190);
+//        Sleep(100);
+//    }
+//    this->pX = p;
+
     this->pY = (PFLOAT) (*pCoordinate + 0x194);
+//    p = (PFLOAT) (*pCoordinate + 0x194);
+//    while (IsBadCodePtr((FARPROC) p)) {
+//        p = (PFLOAT) (*pCoordinate + 0x194);
+//        Sleep(100);
+//    }
+//    this->pY = p;
+
     this->pZ = (PFLOAT) (*pCoordinate + 0x198);
+//    p = (PFLOAT) (*pCoordinate + 0x198);
+//    while (IsBadCodePtr((FARPROC) p)) {
+//        p = (PFLOAT) (*pCoordinate + 0x198);
+//        Sleep(100);
+//    }
+//    this->pZ = p;
 }
 
 void Coordinate::clearData() {
     this->isLocked = false;
 
+    this->pX = nullptr;
+    this->pY = nullptr;
+    this->pZ = nullptr;
+
     this->x = 0;
     this->y = 0;
     this->z = 0;
+
+    this->lockX = 0;
+    this->lockY = 0;
+    this->lockZ = 0;
 }
 
 Boss::Boss() {
@@ -187,14 +219,18 @@ DWORD WINAPI Boss::monitoring(LPVOID) {
 
         if (!helper.boss.hp.pointer || helper.boss.hp.value == 0) {
             inHunt = false;
-            startHunt = true;
             lButtonDown = false;
             rButtonDown = false;
-
-            helper.player.coordinate.isLocked = false;
-
             helper.huntingFeatures[2].status = false;
-            helper.boss.coordinate.clearData();
+
+            Sleep(1000);
+
+            if (!startHunt) {
+                helper.boss.coordinate.clearData();
+                helper.player.coordinate.clearData();
+            }
+
+            startHunt = true;
         } else inHunt = true;
 
         Sleep(1);
@@ -216,41 +252,49 @@ Player::Player() {
     this->attributes.emplace_back(processAddress + 0x3E323B0, std::initializer_list<DWORD64>{0x10, 0x758, 0x190, 0x8, 0xD4}, 10.f);
     this->attributes.emplace_back(processAddress + 0x3E323B0, std::initializer_list<DWORD64>{0x10, 0x758, 0x190, 0x10, 0x30}, 4.f);
     this->attributes.emplace_back(processAddress + 0x3E323B0, std::initializer_list<DWORD64>{0x10, 0x398, 0x214}, 100000.f);
-    this->attributes.emplace_back(processAddress + 0x402A2C8, std::initializer_list<DWORD64>{0x18, 0x240, 0x398, 0x1AC}, 2000.f);
+    this->attributes.emplace_back(processAddress + 0x4076340, std::initializer_list<DWORD64>{0x30, 0x3B8, 0x398, 0x1AC}, 2000.f);
     this->attributes.emplace_back(processAddress + 0x3E323B0, std::initializer_list<DWORD64>{0x10, 0x758, 0x190, 0, 0xB4}, 100.f);
 
     this->coordinate = Coordinate(processAddress + 0x3E323B0, std::initializer_list<DWORD64>{0x10, 0x48, 0x8, 0xC8});
 }
 
 void Player::updateAttribute() {
-    if (inHunt) {
-        for (Attribute &attribute : this->attributes) {
-            if (attribute.status) {
-                attribute.previousStatus = true;
-                *attribute.pointer = attribute.value;
-            } else if (attribute.previousStatus) {
-                attribute.previousStatus = false;
-                if (attribute.status) *attribute.pointer = attribute.defaultValue;
-            }
-        }
-    } else {
-        for (Attribute &attribute : this->attributes) {
-            attribute.pointer = (PFLOAT) readFromMemSecurity(attribute.baseAddress, attribute.offsets);
-            if (!attribute.pointer) continue;
-
-            if (attribute.status) {
-                attribute.previousStatus = true;
-                *attribute.pointer = attribute.value;
-            } else if (attribute.previousStatus) {
-                attribute.previousStatus = false;
-                if (attribute.status) *attribute.pointer = attribute.defaultValue;
-            }
+//    if (inHunt) {
+    for (Attribute &attribute : this->attributes) {
+        if (attribute.status) {
+            attribute.previousStatus = true;
+            *attribute.pointer = attribute.value;
+        } else if (attribute.previousStatus) {
+            attribute.previousStatus = false;
+            if (attribute.status) *attribute.pointer = attribute.defaultValue;
         }
     }
+//    } else {
+//        for (Attribute &attribute : this->attributes) {
+//            attribute.pointer = (PFLOAT) readFromMemSecurity(attribute.baseAddress, attribute.offsets);
+//            if (!attribute.pointer) continue;
+//
+//            if (attribute.status) {
+//                attribute.previousStatus = true;
+//                *attribute.pointer = attribute.value;
+//            } else if (attribute.previousStatus) {
+//                attribute.previousStatus = false;
+//                if (attribute.status) *attribute.pointer = attribute.defaultValue;
+//            }
+//        }
+//    }
 }
 
 void Player::initInHunt() {
-    for (Attribute &attribute : this->attributes) attribute.pointer = (PFLOAT) readFromMemSecurity(attribute.baseAddress, attribute.offsets);
+    for (Attribute &attribute : this->attributes) {
+        PFLOAT p = nullptr;
+        while (!p) {
+            p = (PFLOAT) readFromMemSecurity(attribute.baseAddress, attribute.offsets);
+            Sleep(100);
+        }
+
+        attribute.pointer = p;
+    }
 
     this->coordinate.initInHunt();
 }
@@ -282,9 +326,6 @@ DWORD WINAPI Helper::run(LPVOID) {
     CreateThread(nullptr, NULL, Boss::monitoring, nullptr, NULL, nullptr);
 
     while (g_initialised) {
-        helper.player.updateAttribute();
-        helper.player.coordinate.update();
-
         Sleep(16);
         if (!inHunt) {
             Sleep(1000);
@@ -293,13 +334,15 @@ DWORD WINAPI Helper::run(LPVOID) {
 
         if (startHunt) {
             startHunt = false;
-            Sleep(18000);
+            Sleep(16000);
 
             helper.player.initInHunt();
             helper.boss.initInHunt();
         }
 
         helper.boss.coordinate.update();
+        helper.player.updateAttribute();
+        helper.player.coordinate.update();
 
         if (dauntlessWindow == GetForegroundWindow()) {
             lButtonDown = GetKeyState(VK_LBUTTON) < 0;
@@ -319,18 +362,19 @@ void Helper::draw() {
 
     ImGui::Begin("Dauntless Helper");
 
-    ImGui::Checkbox("Active menu", &g_activeMenu);
+    ImGui::Checkbox("Active menu [F1] ", &g_activeMenu);
 
     if (ImGui::CollapsingHeader("Info")) {
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
         ImGui::Text("Author: Xavier Lau - c.estlavie@icloud.com");
         ImGui::Text("Github: github.com/AurevoirXavier/dauntless-helper");
+        ImGui::Text(" Press INSERT to hide the menu completely");
     }
 
     if (ImGui::CollapsingHeader("Hunting features")) {
         ImGui::Checkbox("Auto click", &helper.huntingFeatures[0].status);
         ImGui::Checkbox("Lock player position on auto click", &helper.huntingFeatures[1].status);
-        ImGui::Checkbox("Summon Boss", &helper.huntingFeatures[2].status);
+        ImGui::Checkbox("Summon Boss [F2]", &helper.huntingFeatures[2].status);
     }
 
     if (ImGui::CollapsingHeader("Player Attributes")) {
