@@ -15,6 +15,7 @@
 - **Insert**: show menu - 显示菜单
 - **Hom**e: teleport to Boss - 传送 Boss
 - **Delete**: attack from far - 远程攻击
+- **F10**: auto farm - 自动打怪
 - **End**: cancel the injection - 取消注入
 
 - **Other features**: 
