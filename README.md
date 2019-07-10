@@ -3,6 +3,7 @@
 #### cpp-ver-imgui-ver
 
 - **F1**: focus on menu - 激活菜单
+- **F10**: auto farm - 自动打怪
 - **Home**: show/hide menu - 显示/隐藏菜单
 
 - **Other feature**: use **Tab** to modify the slide bar value - 使用 Tab 键可修改滑动条数值 
@@ -15,7 +16,6 @@
 - **Insert**: show menu - 显示菜单
 - **Hom**e: teleport to Boss - 传送 Boss
 - **Delete**: attack from far - 远程攻击
-- **F10**: auto farm - 自动打怪
 - **End**: cancel the injection - 取消注入
 
 - **Other features**: 
