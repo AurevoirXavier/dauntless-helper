@@ -1,7 +1,5 @@
 #include <helper.h>
 
-#include <utility>
-
 extern HWND dauntlessWindow;
 extern DWORD64 processAddress;
 
@@ -72,14 +70,14 @@ DWORD WINAPI TeleportPlayerToBoss(LPVOID) {
 }
 
 void teleportPlayerToBoss() {
-    // locked by auto click
-    if (helper.player.coordinate.isLocked) helper.huntingFeatures[2].status = false; else CreateThread(nullptr, NULL, TeleportPlayerToBoss, nullptr, NULL, nullptr);
+    // not inHunt or locked by autoClick/Farming
+    if (!inHunt || helper.player.coordinate.isLocked) helper.huntingFeatures[2].status = false; else CreateThread(nullptr, NULL, TeleportPlayerToBoss, nullptr, NULL, nullptr);
 }
 
 DWORD WINAPI TeleportBossToPlayer(LPVOID) {
     helper.boss.coordinate.isLocked = true;
 
-    float x = helper.player.coordinate.x + 500;
+    float x = helper.player.coordinate.x;
     float y = helper.player.coordinate.y;
     float z = helper.player.coordinate.z;
 
@@ -96,8 +94,35 @@ DWORD WINAPI TeleportBossToPlayer(LPVOID) {
 }
 
 void teleportBossToPlayer() {
-    // locked by self thread
-    if (!helper.boss.coordinate.isLocked) CreateThread(nullptr, NULL, TeleportBossToPlayer, nullptr, NULL, nullptr);
+    // if not inHunt, else if wasn't locked by TeleportBossToPlayer
+    if (!inHunt) helper.huntingFeatures[3].status = false; else if (!helper.boss.coordinate.isLocked) CreateThread(nullptr, NULL, TeleportBossToPlayer, nullptr, NULL, nullptr);
+}
+
+void autoFarming() {
+    // conflict with teleportPlayerToBoss and teleportBossToPlayer
+    if (helper.huntingFeatures[2].status || helper.huntingFeatures[3].status) {
+        helper.autoFarm = false;
+        return;
+    }
+
+    helper.huntingFeatures[3].status = true;
+    teleportBossToPlayer();
+
+    while (helper.autoFarm && inHunt) {
+        if ((GetAsyncKeyState(VK_F10) & 1) != 0) break;
+
+        helper.player.coordinate.lock();
+        helper.player.updateAttribute();
+
+        PostMessage(dauntlessWindow, WM_RBUTTONDOWN, NULL, helper.cursor);
+        PostMessage(dauntlessWindow, WM_RBUTTONUP, NULL, helper.cursor);
+
+        Sleep(16);
+    }
+
+    helper.huntingFeatures[3].status = false;
+    helper.player.coordinate.isLocked = false;
+    helper.autoFarm = false;
 }
 
 Attribute::Attribute() {
@@ -130,10 +155,10 @@ Coordinate::Coordinate() {
     this->pZ = nullptr;
 
     this->x = 0;
-    this->lockX = 0;
     this->y = 0;
-    this->lockY = 0;
     this->z = 0;
+    this->lockX = 0;
+    this->lockY = 0;
     this->lockZ = 0;
 }
 
@@ -147,11 +172,8 @@ Coordinate::Coordinate(DWORD64 baseAddress, std::vector<DWORD64> offsets) {
     this->pZ = nullptr;
 
     this->x = 0;
-    this->lockX = 0;
     this->y = 0;
-    this->lockY = 0;
     this->z = 0;
-    this->lockZ = 0;
 }
 
 void Coordinate::lock() {
@@ -186,13 +208,12 @@ void Coordinate::initInHunt() {
     PDWORD64 pCoordinate = nullptr;
     while (!pCoordinate) {
         pCoordinate = readFromMemSecurity(this->baseAddress, this->offsets);
-        Sleep(100);
+        Sleep(16);
     }
 
     this->pX = (PFLOAT) (*pCoordinate + 0x190);
     this->pY = (PFLOAT) (*pCoordinate + 0x194);
     this->pZ = (PFLOAT) (*pCoordinate + 0x198);
-
 }
 
 void Coordinate::clearData() {
@@ -213,9 +234,9 @@ void Coordinate::clearData() {
 
 Boss::Boss() {
     // 0 hp
-    this->hp = Attribute(processAddress + 0x4091010, std::initializer_list<DWORD64>{0x148, 0x440, 0, 0x758, 0x190, 0, 0x30}, 0.f);
+    this->hp = Attribute(processAddress + 0x41501C0, std::initializer_list<DWORD64>{0x148, 0x440, 0, 0x758, 0x190, 0, 0x30}, 0.f);
 
-    this->coordinate = Coordinate(processAddress + 0x4091010, std::initializer_list<DWORD64>{0x148, 0x440, 0, 0x158});
+    this->coordinate = Coordinate(processAddress + 0x41501C0, std::initializer_list<DWORD64>{0x148, 0x440, 0, 0x158});
 }
 
 DWORD WINAPI Boss::monitoring(LPVOID) {
@@ -227,10 +248,12 @@ DWORD WINAPI Boss::monitoring(LPVOID) {
             inHunt = false;
             lButtonDown = false;
             rButtonDown = false;
+            helper.autoFarm = false;
             helper.huntingFeatures[2].status = false;
             helper.huntingFeatures[3].status = false;
 
-            Sleep(100);
+            // wait for other thread end
+            Sleep(16);
 
             if (!startHunt) {
                 helper.boss.coordinate.clearData();
@@ -238,9 +261,10 @@ DWORD WINAPI Boss::monitoring(LPVOID) {
             }
 
             startHunt = true;
-        } else inHunt = true;
-
-        Sleep(1);
+        } else {
+            inHunt = true;
+            Sleep(16);
+        }
     }
 
     return NULL;
@@ -257,14 +281,14 @@ Player::Player() {
     // 3 instant movement 1
     // 4 instant movement 2
     // 5 stamina
-    this->attributes.emplace_back(processAddress + 0x3E323B0, std::initializer_list<DWORD64>{0x10, 0x758, 0x190, 0x8, 0xD4}, 10.f);
-    this->attributes.emplace_back(processAddress + 0x3E323B0, std::initializer_list<DWORD64>{0x10, 0x758, 0x190, 0x10, 0x30}, 4.f);
-    this->attributes.emplace_back(processAddress + 0x4076340, std::initializer_list<DWORD64>{0x30, 0x3B8, 0x398, 0x1AC}, 2000.f);
-    this->attributes.emplace_back(processAddress + 0x3E323B0, std::initializer_list<DWORD64>{0x10, 0x398, 0x1F8}, 10000.f);
-    this->attributes.emplace_back(processAddress + 0x3E323B0, std::initializer_list<DWORD64>{0x10, 0x398, 0x214}, 10000.f);
-    this->attributes.emplace_back(processAddress + 0x3E323B0, std::initializer_list<DWORD64>{0x10, 0x758, 0x190, 0, 0xB4}, 106.f);
+    this->attributes.emplace_back(processAddress + 0x3EF04E0, std::initializer_list<DWORD64>{0x10, 0x758, 0x190, 0x8, 0xD4}, 10.f);
+    this->attributes.emplace_back(processAddress + 0x3EF04E0, std::initializer_list<DWORD64>{0x10, 0x758, 0x190, 0x10, 0x30}, 4.f);
+    this->attributes.emplace_back(processAddress + 0x3EF04E0, std::initializer_list<DWORD64>{0x10, 0x398, 0x1AC}, 2000.f);
+    this->attributes.emplace_back(processAddress + 0x3EF04E0, std::initializer_list<DWORD64>{0x10, 0x398, 0x1F8}, 10000.f);
+    this->attributes.emplace_back(processAddress + 0x3EF04E0, std::initializer_list<DWORD64>{0x10, 0x398, 0x214}, 10000.f);
+    this->attributes.emplace_back(processAddress + 0x3EF04E0, std::initializer_list<DWORD64>{0x10, 0x758, 0x190, 0, 0xB4}, 106.f);
 
-    this->coordinate = Coordinate(processAddress + 0x3E323B0, std::initializer_list<DWORD64>{0x10, 0x48, 0x8, 0xC8});
+    this->coordinate = Coordinate(processAddress + 0x3EF04E0, std::initializer_list<DWORD64>{0x10, 0x48, 0x8, 0xC8});
 }
 
 void Player::updateAttribute() {
@@ -284,7 +308,7 @@ void Player::initInHunt() {
         PFLOAT p = nullptr;
         while (!p) {
             p = (PFLOAT) readFromMemSecurity(attribute.baseAddress, attribute.offsets);
-            Sleep(100);
+            Sleep(16);
         }
 
         attribute.pointer = p;
@@ -300,13 +324,14 @@ Feature::Feature(void (*fn)()) {
 }
 
 Helper::Helper() {
-    POINT p;
-    GetCursorPos(&p);
-    ScreenToClient(dauntlessWindow, &p);
-    this->cursor = MAKELONG(p.x, p.y);
+    RECT rect;
+    GetWindowRect(dauntlessWindow, &rect);
+    this->cursor = MAKELONG((rect.right - rect.left) / 2, (rect.bottom - rect.top) / 2);
 
     this->boss = Boss();
     this->player = Player();
+
+    this->autoFarm = false;
 
     // 0 auto click
     // 1 lock player position on auto lock
@@ -323,10 +348,7 @@ DWORD WINAPI Helper::run(LPVOID) {
 
     while (g_initialised) {
         Sleep(16);
-        if (!inHunt) {
-            Sleep(1000);
-            continue;
-        }
+        if (!inHunt) continue;
 
         if (startHunt) {
             startHunt = false;
@@ -340,13 +362,19 @@ DWORD WINAPI Helper::run(LPVOID) {
         helper.player.updateAttribute();
         helper.player.coordinate.update();
 
+        if (helper.autoFarm) {
+            autoFarming();
+            continue;
+        }
+
         if (dauntlessWindow == GetForegroundWindow()) {
             lButtonDown = GetKeyState(VK_LBUTTON) < 0;
             rButtonDown = GetKeyState(VK_RBUTTON) < 0;
 
-            // feature 2 only call once
+            // reset to false automatically when function end
+            if (GetAsyncKeyState(VK_F10) & 1) helper.autoFarm = true;
+            // reset to false automatically when function end
             if (GetAsyncKeyState(VK_F2) & 1) helper.huntingFeatures[2].status = true;
-            // feature 3 in a loop
             if (GetAsyncKeyState(VK_F3) & 1) helper.huntingFeatures[3].status = !helper.huntingFeatures[3].status;
         }
 
@@ -371,10 +399,13 @@ void Helper::draw() {
     }
 
     if (ImGui::CollapsingHeader("Hunting features")) {
-        ImGui::Checkbox("Auto click", &helper.huntingFeatures[0].status);
-        ImGui::Checkbox("Lock player position on auto click", &helper.huntingFeatures[1].status);
-        ImGui::Checkbox("Teleport to Boss [F2]", &helper.huntingFeatures[2].status);
-        ImGui::Checkbox("Summon Boss [F3]", &helper.huntingFeatures[3].status);
+        ImGui::Checkbox("Auto farm [F10]", &helper.autoFarm);
+        if (!helper.autoFarm) {
+            ImGui::Checkbox("Auto click", &helper.huntingFeatures[0].status);
+            ImGui::Checkbox("Lock player position on auto click", &helper.huntingFeatures[1].status);
+            ImGui::Checkbox("Teleport to Boss [F2]", &helper.huntingFeatures[2].status);
+            ImGui::Checkbox("Summon Boss [F3]", &helper.huntingFeatures[3].status);
+        }
     }
 
     if (ImGui::CollapsingHeader("Player Attributes")) {

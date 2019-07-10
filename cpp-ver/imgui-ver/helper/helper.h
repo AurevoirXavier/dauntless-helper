@@ -96,6 +96,8 @@ public:
     Boss boss;
     Player player;
 
+    bool autoFarm;
+
     std::vector<Feature> huntingFeatures;
 
     Helper();
