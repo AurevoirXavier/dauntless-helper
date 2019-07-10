@@ -8,7 +8,7 @@
 #pragma comment(lib, "detours.lib")
 #pragma comment(lib, "helper")
 
-//#pragma warning(disable:4996)
+#pragma warning(disable:4996)
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 
